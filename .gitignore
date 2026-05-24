@@ -1,0 +1,4 @@
+*.rsdk
+/bin
+/ref/SCD-WP7-pc-port
+/build
