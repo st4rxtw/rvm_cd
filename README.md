@@ -7,6 +7,8 @@ An attempt to recreate the engine the Sonic CD 2011 mobile version uses. Heavily
 * The ground of the special special stages render wrong
 * Exit doesn't do anything in ze pause menu
 * No zone card
+* No Audio
+* No Video 
 
 ## Controls
 
