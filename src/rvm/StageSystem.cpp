@@ -591,6 +591,9 @@ void StageSystem::DrawStageGfx()
     ++s_gfxFrameCount;
     GraphicsSystem::gfxVertexSize=0;
     GraphicsSystem::gfxIndexSize=0;
+    GraphicsSystem::render3DEnabled=false;
+    GraphicsSystem::vertexSize3D=0;
+    GraphicsSystem::indexSize3D=0;
     GraphicsSystem::waterDrawPos=waterLevel-yScrollOffset;
     if(GraphicsSystem::waterDrawPos<-16) GraphicsSystem::waterDrawPos=-16;
     if(GraphicsSystem::waterDrawPos>=240) GraphicsSystem::waterDrawPos=256;

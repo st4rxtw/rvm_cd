@@ -214,74 +214,26 @@ static void doFlip()
     if(!s_glReady) return;
 
     if(++s_flipCount <= 5 || s_flipCount % 60 == 0)
-        Log::Info("flip#%d verts=%u idx=%u opaqueIdx=%u",
+        Log::Info("flip#%d verts=%u idx=%u opaqueIdx=%u 3D:vs=%u is=%u pos=(%.2f,%.2f,%.2f) ang=%.1f",
             s_flipCount,
             (unsigned)GraphicsSystem::gfxVertexSize,
             (unsigned)GraphicsSystem::gfxIndexSize,
-            (unsigned)GraphicsSystem::gfxIndexSizeOpaque);
+            (unsigned)GraphicsSystem::gfxIndexSizeOpaque,
+            (unsigned)GraphicsSystem::vertexSize3D,
+            (unsigned)GraphicsSystem::indexSize3D,
+            GraphicsSystem::floor3DPosX,
+            GraphicsSystem::floor3DPosY,
+            GraphicsSystem::floor3DPosZ,
+            GraphicsSystem::floor3DAngle);
 
     int32_t sw = GlobalAppDefinitions::SCREEN_XSIZE * 16;
     int32_t sh = 240 * 16;
 
     glViewport(0, 0, RenderDevice::viewWidth, RenderDevice::viewHeight);
     glClearColor(0,0,0,1);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT);
     glDisable(GL_DEPTH_TEST);
-
-    if(GraphicsSystem::render3DEnabled){
-        glEnable(GL_DEPTH_TEST);
-        glClear(GL_DEPTH_BUFFER_BIT);
-
-        glUseProgram(s_prog3D);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, s_atlasTexture);
-        glUniform1i(glGetUniformLocation(s_prog3D,"uTex"),0);
-
-        float fov=60.0f*(3.14159265f/180.0f);
-        float aspect=(float)RenderDevice::viewWidth/(float)RenderDevice::viewHeight;
-        float znear=0.1f, zfar=2000.0f;
-        float f=1.0f/tanf(fov*0.5f);
-        float proj[16]={
-            f/aspect,0,0,0,
-            0,f,0,0,
-            0,0,(zfar+znear)/(znear-zfar),-1,
-            0,0,(2*zfar*znear)/(znear-zfar),0
-        };
-
-        float ang = GraphicsSystem::floor3DAngle * (3.14159265f/180.0f);
-        float ca=cosf(ang), sa=sinf(ang);
-        float tx=GraphicsSystem::floor3DPosX;
-        float ty=GraphicsSystem::floor3DPosY;
-        float tz=GraphicsSystem::floor3DPosZ;
-        float view[16]={
-             ca, 0, sa, 0,
-              0, 1,  0, 0,
-            -sa, 0, ca, 0,
-            -(  ca*tx + 0*ty + sa*tz),
-            -(   0*tx + 1*ty +  0*tz),
-            -( -sa*tx + 0*ty + ca*tz),
-            1
-        };
-        float mvp[16];
-        for(int r=0;r<4;r++) for(int c=0;c<4;c++){
-            mvp[r+c*4]=0;
-            for(int k=0;k<4;k++) mvp[r+c*4]+=proj[r+k*4]*view[k+c*4];
-        }
-        glUniformMatrix4fv(glGetUniformLocation(s_prog3D,"uMVP"),1,GL_FALSE,mvp);
-
-        glBindVertexArray(s_vao3D);
-        glBindBuffer(GL_ARRAY_BUFFER, s_vbo3D);
-        glBufferSubData(GL_ARRAY_BUFFER,0,
-            (int32_t)GraphicsSystem::vertexSize3D*sizeof(DrawVertex3D),
-            GraphicsSystem::polyList3D);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_ibo);
-        glDisable(GL_BLEND);
-        glDrawElements(GL_TRIANGLES,
-            (int32_t)GraphicsSystem::indexSize3D*3,
-            GL_UNSIGNED_SHORT, 0);
-        glBindVertexArray(0);
-        glDisable(GL_DEPTH_TEST);
-    }
+    glDisable(GL_BLEND);
 
     glUseProgram(s_prog2D);
     glActiveTexture(GL_TEXTURE0);
@@ -302,7 +254,69 @@ static void doFlip()
     glDisable(GL_BLEND);
     if(opaqueIdx > 0)
         glDrawElements(GL_TRIANGLES, opaqueIdx, GL_UNSIGNED_SHORT, 0);
+    glBindVertexArray(0);
 
+    if(GraphicsSystem::render3DEnabled){
+        glUseProgram(s_prog3D);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, s_atlasTexture);
+        glUniform1i(glGetUniformLocation(s_prog3D,"uTex"),0);
+
+        float ang3 = (GraphicsSystem::floor3DAngle + 180.0f) * (3.14159265f/180.0f);
+        float c3=cosf(ang3), s3=sinf(ang3);
+        float tx=GraphicsSystem::floor3DPosX;
+        float ty=GraphicsSystem::floor3DPosY;
+        float tz=GraphicsSystem::floor3DPosZ;
+
+        float model[16]={
+            1.35f*c3,  0, -s3, 0,
+            0,       -0.9f,  0, 0,
+            1.35f*s3,  0,  c3, 0,
+            1.35f*(c3*tx+s3*tz), -0.9f*ty, -s3*tx+c3*tz, 1
+        };
+
+        float fov3=1.8326f, ar3=0.75f, near3=0.1f, far3=2000.0f;
+        float w3 = 1.0f/tanf(fov3*0.5f);
+        float h3 = 1.0f/(w3*ar3);
+        float qz  = -(far3+near3)/(far3-near3);
+        float qw  = -(2.0f*far3*near3)/(far3-near3);
+        float proj[16]={
+            w3,       0,   0,  0,
+            0,  h3*0.5f,   0,  0,
+            0,        0,  qz, -1,
+            0,        0,  qw,  0
+        };
+
+        float mvp[16];
+        for(int r=0;r<4;r++) for(int cc=0;cc<4;cc++){
+            mvp[r+cc*4]=0;
+            for(int k=0;k<4;k++) mvp[r+cc*4]+=proj[r+k*4]*model[k+cc*4];
+        }
+        glUniformMatrix4fv(glGetUniformLocation(s_prog3D,"uMVP"),1,GL_FALSE,mvp);
+
+        glBindVertexArray(s_vao3D);
+        glBindBuffer(GL_ARRAY_BUFFER, s_vbo3D);
+        glBufferSubData(GL_ARRAY_BUFFER,0,
+            (int32_t)GraphicsSystem::vertexSize3D*sizeof(DrawVertex3D),
+            GraphicsSystem::polyList3D);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, s_ibo);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glDrawElements(GL_TRIANGLES,
+            (int32_t)GraphicsSystem::indexSize3D*3,
+            GL_UNSIGNED_SHORT, 0);
+        glDisable(GL_BLEND);
+        glBindVertexArray(0);
+    }
+
+    glUseProgram(s_prog2D);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, s_atlasTexture);
+    glUniform1i(glGetUniformLocation(s_prog2D,"uTex"),0);
+    glUniform2f(glGetUniformLocation(s_prog2D,"uInvHalfScreen"),
+                2.0f/(float)sw, 2.0f/(float)sh);
+
+    glBindVertexArray(s_vao2D);
     if(totalIdx > opaqueIdx){
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -311,7 +325,6 @@ static void doFlip()
                        (void*)(uintptr_t)(opaqueIdx * sizeof(int16_t)));
         glDisable(GL_BLEND);
     }
-
     glBindVertexArray(0);
 }
 
