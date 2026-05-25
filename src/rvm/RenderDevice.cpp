@@ -124,6 +124,7 @@ void RenderDevice::InitRenderDevice()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1024, 1024, 0,
                  GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1, nullptr);
+    glGenerateMipmap(GL_TEXTURE_2D);
 
     s_prog2D = linkProg(kVS2D, kFS2D);
     s_prog3D = linkProg(kVS3D, kFS3D);
@@ -175,6 +176,7 @@ void RenderDevice::UpdateHardwareTextures()
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1024, 1024,
                         GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1,
                         GraphicsSystem::texBuffer);
+        glGenerateMipmap(GL_TEXTURE_2D);
     }
 
     for (uint8_t p = 1; p < 6; ++p) {
@@ -293,6 +295,7 @@ static void doFlip()
             for(int k=0;k<4;k++) mvp[r+cc*4]+=proj[r+k*4]*model[k+cc*4];
         }
         glUniformMatrix4fv(glGetUniformLocation(s_prog3D,"uMVP"),1,GL_FALSE,mvp);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
 
         glBindVertexArray(s_vao3D);
         glBindBuffer(GL_ARRAY_BUFFER, s_vbo3D);
@@ -307,6 +310,7 @@ static void doFlip()
             GL_UNSIGNED_SHORT, 0);
         glDisable(GL_BLEND);
         glBindVertexArray(0);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     }
 
     glUseProgram(s_prog2D);
