@@ -1092,34 +1092,10 @@ void ObjectSystem::ObjectRoofCollision(int32_t xo,int32_t yo,int32_t cp){
     if(tileRoof(x,y,cp)){scriptEng.checkResult=1;objectEntityList[objectLoop].yPos=(y-yo)<<16;}
 }
 
-static void gripScan(int32_t mainPos,int32_t cross,int32_t cp,bool isFloor,int32_t& outPos,int32_t& result,int step){
-    using SS=StageSystem;
-    int32_t scan=mainPos+step;
-    for(int k=3;k>0;--k){
-        int32_t x=isFloor?cross:scan, y=isFloor?scan:cross;
-        if(x>0&&x<(int32_t)SS::stageLayouts[0].xSize<<7&&y>0&&y<(int32_t)SS::stageLayouts[0].ySize<<7&&result==0){
-            int32_t tx=x>>7,tc=(x&127)>>4,ty=y>>7,tr=(y&127)>>4;
-            int32_t idx=((int32_t)SS::stageLayouts[0].tileMap[tx+(ty<<8)]<<6)+(tc+(tr<<3));
-            int32_t t=(int32_t)SS::tile128x128.tile16x16[idx];
-            if(SS::tile128x128.collisionFlag[cp][idx]!=2&&SS::tile128x128.collisionFlag[cp][idx]!=3){
-                if(isFloor){
-                    switch(SS::tile128x128.direction[idx]){
-                    case 0:{int32_t m=(x&15)+(t<<4);if(SS::tileCollisions[cp].floorMask[m]<64){outPos=(int32_t)SS::tileCollisions[cp].floorMask[m]+(ty<<7)+(tr<<4);result=1;}break;}
-                    case 1:{int32_t m=15-(x&15)+(t<<4);if(SS::tileCollisions[cp].floorMask[m]<64){outPos=(int32_t)SS::tileCollisions[cp].floorMask[m]+(ty<<7)+(tr<<4);result=1;}break;}
-                    case 2:{int32_t m=(x&15)+(t<<4);if(SS::tileCollisions[cp].roofMask[m]>(int8_t)-64){outPos=15-(int32_t)SS::tileCollisions[cp].roofMask[m]+(ty<<7)+(tr<<4);result=1;}break;}
-                    case 3:{int32_t m=15-(x&15)+(t<<4);if(SS::tileCollisions[cp].roofMask[m]>(int8_t)-64){outPos=15-(int32_t)SS::tileCollisions[cp].roofMask[m]+(ty<<7)+(tr<<4);result=1;}break;}
-                    }
-                }
-            }
-        }
-        scan+=16;
-    }
-}
 
 void ObjectSystem::ObjectFloorGrip(int32_t xo,int32_t yo,int32_t cp){
     scriptEng.checkResult=0;
-    int32_t x=(objectEntityList[objectLoop].xPos>>16)+xo,y=(objectEntityList[objectLoop].yPos>>16)+yo,orig=y,out=0;
-    gripScan(y-16,x,cp,true,out,scriptEng.checkResult,-0);
+    int32_t x=(objectEntityList[objectLoop].xPos>>16)+xo,y=(objectEntityList[objectLoop].yPos>>16)+yo,orig=y;
     for(int k=3,scan=y-16;k>0;--k,scan+=16){
         using SS=StageSystem;
         if(x>0&&x<(int32_t)SS::stageLayouts[0].xSize<<7&&scan>0&&scan<(int32_t)SS::stageLayouts[0].ySize<<7&&scriptEng.checkResult==0){
