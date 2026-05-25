@@ -1,67 +1,75 @@
 #include <cstdio>
+#include <cstring>
+#include <cstdlib>
+#include <climits>
+#include <unistd.h>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-static void on_key(GLFWwindow* window, int key, int /*scancode*/, int action, int /*mods*/)
-{
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, GLFW_TRUE);
-}
+#include <cd/Game.h>
+#include <rvm/FileIO.h>
+#include <rvm/Log.h>
 
-static void on_framebuffer_resize(GLFWwindow* /*window*/, int width, int height)
+static void compute_base_path(char* out, size_t cap, const char* argv0)
 {
-    glViewport(0, 0, width, height);
-}
-
-int main()
-{
-    if (!glfwInit()) {
-        fprintf(stderr, "Failed to initialise GLFW\n");
-        return 1;
+    char buf[PATH_MAX] = {};
+    ssize_t n = readlink("/proc/self/exe", buf, sizeof(buf)-1);
+    if (n > 0) {
+        buf[n] = '\0';
+        char* slash = strrchr(buf, '/');
+        if (slash) { slash[1] = '\0'; snprintf(out, cap, "%s", buf); return; }
     }
+    snprintf(out, cap, "%s", argv0 ? argv0 : "");
+    char* slash = strrchr(out, '/');
+    if (slash) slash[1] = '\0';
+    else out[0] = '\0';
+}
 
+static void on_focus(GLFWwindow*, int focused)
+{
+    if (focused) cd::Game::OnFocusGained();
+    else         cd::Game::OnFocusLost();
+}
+
+int main(int argc, char* argv[])
+{
+    char base[PATH_MAX] = {};
+    compute_base_path(base, sizeof(base), argc > 0 ? argv[0] : nullptr);
+    rvm::FileIO::SetBasePath(base);
+
+    if (!glfwInit()) { rvm::Log::Error("glfwInit failed"); return 1; }
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(640, 480, "rvm_cd", nullptr, nullptr);
-    if (!window) {
-        fprintf(stderr, "Failed to create GLFW window\n");
-        glfwTerminate();
-        return 1;
-    }
+    GLFWwindow* win = glfwCreateWindow(800, 480, "Sonic CD", nullptr, nullptr);
+    if (!win) { rvm::Log::Error("glfwCreateWindow failed"); glfwTerminate(); return 1; }
 
-    glfwMakeContextCurrent(window);
+    glfwMakeContextCurrent(win);
     glfwSwapInterval(1);
 
-    if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
-        fprintf(stderr, "Failed to initialise GLAD\n");
-        glfwDestroyWindow(window);
-        glfwTerminate();
-        return 1;
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+        rvm::Log::Error("gladLoadGL failed"); glfwDestroyWindow(win); glfwTerminate(); return 1;
     }
+    rvm::Log::Info("GL %s", glGetString(GL_VERSION));
 
-    printf("OpenGL %s\n", reinterpret_cast<const char*>(glGetString(GL_VERSION)));
+    glfwSetWindowFocusCallback(win, on_focus);
+    { int w,h; glfwGetFramebufferSize(win,&w,&h); glViewport(0,0,w,h); }
 
-    glfwSetKeyCallback(window, on_key);
-    glfwSetFramebufferSizeCallback(window, on_framebuffer_resize);
+    rvm::Log::Info("Init...");
+    cd::Game::Init(win, 800, 480);
+    rvm::Log::Info("Running.");
 
-    {
-        int w, h;
-        glfwGetFramebufferSize(window, &w, &h);
-        glViewport(0, 0, w, h);
-    }
-
-    while (!glfwWindowShouldClose(window)) {
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        glfwSwapBuffers(window);
+    while (!glfwWindowShouldClose(win)) {
         glfwPollEvents();
+        cd::Game::Update(win);
+        cd::Game::Draw();
+        glfwSwapBuffers(win);
     }
 
-    glfwDestroyWindow(window);
+    rvm::Log::Info("Shutdown.");
+    glfwDestroyWindow(win);
     glfwTerminate();
     return 0;
 }

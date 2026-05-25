@@ -13,11 +13,36 @@ pkg_check_modules(GLFW REQUIRED glfw3)
 add_library(glad STATIC third_party/glad/src/glad.c)
 target_include_directories(glad PUBLIC third_party/glad/include)
 
+set(RVM_SOURCES
+    src/rvm/GlobalAppDefinitions.cpp
+    src/rvm/FileIO.cpp
+    src/rvm/GifLoader.cpp
+    src/rvm/InputSystem.cpp
+    src/rvm/Scene3D.cpp
+    src/rvm/AudioPlayback.cpp
+    src/rvm/AnimationSystem.cpp
+    src/rvm/TextSystem.cpp
+    src/rvm/GraphicsSystem.cpp
+    src/rvm/RenderDevice.cpp
+    src/rvm/EngineCallbacks.cpp
+    src/rvm/Log.cpp
+    src/rvm/ObjectSystem.cpp
+    src/rvm/StageSystem.cpp
+    src/rvm/PlayerSystem.cpp
+)
+
+set(CD_SOURCES
+    src/cd/Game.cpp
+)
+
 add_executable(rvm_cd
     src/main.cpp
+    ${RVM_SOURCES}
+    ${CD_SOURCES}
 )
 
 target_include_directories(rvm_cd PRIVATE
+    src
     third_party/glad/include
     third_party/stb
     ${GLFW_INCLUDE_DIRS}
