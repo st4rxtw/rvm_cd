@@ -12,7 +12,7 @@ An attempt to recreate the engine the Sonic CD 2011 mobile version uses. Heavily
 
 ## Controls
 
-Arrow Keys - Move
-J & K - Jump
-Escape - Pause
-Enter - Start
+* Arrow Keys - Move
+* J & K - Jump
+* Escape - Pause
+* Enter - Start
