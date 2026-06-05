@@ -155,9 +155,9 @@ void EngineCallbacks::RetroEngineCallback(int32_t callbackID)
             GlobalAppDefinitions::gameMessage = 3;
             break;
         case EXIT_GAME_SELECTED:
-
-            GlobalAppDefinitions::gameMode    = 1;
-            GlobalAppDefinitions::gameMessage = 4;
+            AudioPlayback::ResumeSound();
+            GlobalAppDefinitions::gameMode    = 2;
+            GlobalAppDefinitions::gameMessage = 0;
             break;
         case UNLOCK_FULL_GAME_SELECTED:
             GlobalAppDefinitions::gameMode    = 1;

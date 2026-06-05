@@ -2,6 +2,7 @@
 #include "GraphicsSystem.h"
 #include "InputSystem.h"
 #include "GlobalAppDefinitions.h"
+#include "StageSystem.h"
 #include "Log.h"
 
 #include <glad/glad.h>
@@ -33,6 +34,8 @@ static GLuint s_prog3D        = 0;
 static bool   s_glReady       = false;
 static GLint  s_loc2D_invHalf = -1;
 static GLint  s_loc3D_mvp     = -1;
+static GLuint s_fbo           = 0;
+static GLuint s_fbTex         = 0;
 
 static const char* kVS2D = R"GLSL(
 #version 330 core
@@ -182,6 +185,10 @@ void RenderDevice::UpdateHardwareTextures()
     GraphicsSystem::UpdateTextureBufferWithTiles();
     GraphicsSystem::UpdateTextureBufferWithSortedSprites();
 
+    for(int row = 0; row < 11; ++row)
+        for(int col = 0; col < 11; ++col)
+            GraphicsSystem::texBuffer[row * 1024 + col] = 0xFFFF;
+
     if(s_glReady){
         glBindTexture(GL_TEXTURE_2D, s_atlasTexture);
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 1024, 1024,
@@ -219,6 +226,18 @@ void RenderDevice::SetScreenDimensions(int32_t width, int32_t height)
         GraphicsSystem::SetScreenRenderSize(bufferWidth, bufferWidth);
     }
     orthWidth = GlobalAppDefinitions::SCREEN_XSIZE * 16;
+
+    if(s_fbo){ glDeleteFramebuffers(1, &s_fbo); glDeleteTextures(1, &s_fbTex); s_fbo=0; s_fbTex=0; }
+    glGenTextures(1, &s_fbTex);
+    glBindTexture(GL_TEXTURE_2D, s_fbTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, viewWidth, viewHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glGenFramebuffers(1, &s_fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, s_fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, s_fbTex, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 static int s_flipCount = 0;
@@ -242,9 +261,12 @@ static void doFlip()
     int32_t sw = GlobalAppDefinitions::SCREEN_XSIZE * 16;
     int32_t sh = 240 * 16;
 
+    glBindFramebuffer(GL_FRAMEBUFFER, s_fbo);
     glViewport(0, 0, RenderDevice::viewWidth, RenderDevice::viewHeight);
-    glClearColor(0,0,0,1);
-    glClear(GL_COLOR_BUFFER_BIT);
+    if(StageSystem::stageMode != 2){
+        glClearColor(0,0,0,1);
+        glClear(GL_COLOR_BUFFER_BIT);
+    }
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
 
@@ -336,6 +358,13 @@ static void doFlip()
         glDisable(GL_BLEND);
     }
     glBindVertexArray(0);
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, s_fbo);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glBlitFramebuffer(0, 0, RenderDevice::viewWidth, RenderDevice::viewHeight,
+                      0, 0, RenderDevice::viewWidth, RenderDevice::viewHeight,
+                      GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void RenderDevice::FlipScreen()     { doFlip(); }
