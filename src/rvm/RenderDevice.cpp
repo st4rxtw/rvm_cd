@@ -31,6 +31,8 @@ static GLuint s_vao3D         = 0;
 static GLuint s_prog2D        = 0;
 static GLuint s_prog3D        = 0;
 static bool   s_glReady       = false;
+static GLint  s_loc2D_invHalf = -1;
+static GLint  s_loc3D_mvp     = -1;
 
 static const char* kVS2D = R"GLSL(
 #version 330 core
@@ -128,6 +130,15 @@ void RenderDevice::InitRenderDevice()
 
     s_prog2D = linkProg(kVS2D, kFS2D);
     s_prog3D = linkProg(kVS3D, kFS3D);
+
+    s_loc2D_invHalf = glGetUniformLocation(s_prog2D, "uInvHalfScreen");
+    s_loc3D_mvp     = glGetUniformLocation(s_prog3D, "uMVP");
+
+    glUseProgram(s_prog2D);
+    glUniform1i(glGetUniformLocation(s_prog2D, "uTex"), 0);
+    glUseProgram(s_prog3D);
+    glUniform1i(glGetUniformLocation(s_prog3D, "uTex"), 0);
+    glUseProgram(0);
 
     glGenVertexArrays(1, &s_vao2D);
     glGenBuffers(1, &s_vbo2D);
@@ -240,9 +251,7 @@ static void doFlip()
     glUseProgram(s_prog2D);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, s_atlasTexture);
-    glUniform1i(glGetUniformLocation(s_prog2D,"uTex"),0);
-    glUniform2f(glGetUniformLocation(s_prog2D,"uInvHalfScreen"),
-                2.0f/(float)sw, 2.0f/(float)sh);
+    glUniform2f(s_loc2D_invHalf, 2.0f/(float)sw, 2.0f/(float)sh);
 
     glBindVertexArray(s_vao2D);
     glBindBuffer(GL_ARRAY_BUFFER, s_vbo2D);
@@ -262,7 +271,6 @@ static void doFlip()
         glUseProgram(s_prog3D);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, s_atlasTexture);
-        glUniform1i(glGetUniformLocation(s_prog3D,"uTex"),0);
 
         float ang3 = (GraphicsSystem::floor3DAngle + 180.0f) * (3.14159265f/180.0f);
         float c3=cosf(ang3), s3=sinf(ang3);
@@ -294,7 +302,7 @@ static void doFlip()
             mvp[r+cc*4]=0;
             for(int k=0;k<4;k++) mvp[r+cc*4]+=proj[r+k*4]*model[k+cc*4];
         }
-        glUniformMatrix4fv(glGetUniformLocation(s_prog3D,"uMVP"),1,GL_FALSE,mvp);
+        glUniformMatrix4fv(s_loc3D_mvp, 1, GL_FALSE, mvp);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
 
         glBindVertexArray(s_vao3D);
@@ -316,9 +324,7 @@ static void doFlip()
     glUseProgram(s_prog2D);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, s_atlasTexture);
-    glUniform1i(glGetUniformLocation(s_prog2D,"uTex"),0);
-    glUniform2f(glGetUniformLocation(s_prog2D,"uInvHalfScreen"),
-                2.0f/(float)sw, 2.0f/(float)sh);
+    glUniform2f(s_loc2D_invHalf, 2.0f/(float)sw, 2.0f/(float)sh);
 
     glBindVertexArray(s_vao2D);
     if(totalIdx > opaqueIdx){
