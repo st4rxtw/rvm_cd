@@ -99,6 +99,10 @@ int main(int argc, char* argv[])
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <rvm/InputSystem.h>
+#include <rvm/GlobalAppDefinitions.h>
+#include <rvm/StageSystem.h>
+#include <rvm/ObjectSystem.h>
+#include <rvm/AudioPlayback.h>
 
 static EGLDisplay s_display = EGL_NO_DISPLAY;
 static EGLContext s_context = EGL_NO_CONTEXT;
@@ -185,17 +189,48 @@ int main(int argc, char* argv[])
 
     while (appletMainLoop()) {
         padUpdate(&pad);
-        u64 down = padGetButtons(&pad);
+        u64 held = padGetButtons(&pad);
+        u64 pressed = padGetButtonsDown(&pad);
 
         auto& inp = rvm::InputSystem::touchData;
-        inp.up      = (down & HidNpadButton_Up)    ? 1 : 0;
-        inp.down    = (down & HidNpadButton_Down)   ? 1 : 0;
-        inp.left    = (down & HidNpadButton_Left)   ? 1 : 0;
-        inp.right   = (down & HidNpadButton_Right)  ? 1 : 0;
-        inp.buttonA = (down & HidNpadButton_A)      ? 1 : 0;
-        inp.buttonB = (down & HidNpadButton_B)      ? 1 : 0;
-        inp.buttonC = (down & HidNpadButton_X)      ? 1 : 0;
-        inp.start   = (down & HidNpadButton_Plus)   ? 1 : 0;
+
+        inp.up      = (held & HidNpadButton_Up)    ? 1 : 0;
+        inp.down    = (held & HidNpadButton_Down)   ? 1 : 0;
+        inp.left    = (held & HidNpadButton_Left)   ? 1 : 0;
+        inp.right   = (held & HidNpadButton_Right)  ? 1 : 0;
+        inp.buttonA = (held & HidNpadButton_A)      ? 1 : 0;
+        inp.buttonB = (held & HidNpadButton_B)      ? 1 : 0;
+        inp.buttonC = (held & HidNpadButton_X)      ? 1 : 0;
+        inp.start   = (held & HidNpadButton_Plus)   ? 1 : 0;
+
+        static constexpr int STICK_DEAD = 10000;
+        HidAnalogStickState lstick = padGetStickPos(&pad, 0);
+        if (lstick.x < -STICK_DEAD) inp.left  = 1;
+        if (lstick.x >  STICK_DEAD) inp.right = 1;
+        if (lstick.y >  STICK_DEAD) inp.up    = 1;
+        if (lstick.y < -STICK_DEAD) inp.down  = 1;
+
+        if (pressed & HidNpadButton_Plus) {
+            using namespace rvm;
+            if (FileIO::activeStageList == 0) {
+                if (StageSystem::stageListPosition == 4 ||
+                    StageSystem::stageListPosition == 5)
+                    inp.start   = 1;
+                else
+                    inp.buttonB = 1;
+            } else if (StageSystem::stageMode == 2) {
+                ObjectEntity& pauseObj = ObjectSystem::objectEntityList[9];
+                if (pauseObj.state == 3 && GlobalAppDefinitions::gameMode == 1) {
+                    pauseObj.state    = 4;
+                    pauseObj.value[0] = 0;
+                    pauseObj.value[1] = 0;
+                    pauseObj.alpha    = 248;
+                    AudioPlayback::PlaySfx(27, 0);
+                }
+            } else {
+                GlobalAppDefinitions::gameMessage = 2;
+            }
+        }
 
         cd::Game::Update(nullptr);
         cd::Game::Draw();
