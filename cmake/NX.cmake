@@ -14,7 +14,7 @@ target_include_directories(glad PUBLIC third_party/glad/include)
 target_compile_definitions(glad PRIVATE __SWITCH__)
 
 add_executable(rvm_cd.elf
-    src/main.cpp
+    src/switch_main.cpp
     ${RVM_SOURCES}
     ${CD_SOURCES}
 )
