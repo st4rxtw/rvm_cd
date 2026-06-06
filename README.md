@@ -6,7 +6,6 @@ An attempt to recreate the engine the Sonic CD 2011 mobile version uses. Heavily
 
 * The ground in the special stages is low quality
 * No zone card
-* No Video 
 
 ## Controls
 
