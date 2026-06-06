@@ -22,6 +22,7 @@ struct RenderDevice {
     static void SetScreenDimensions(int32_t width, int32_t height);
     static void FlipScreen();
     static void FlipScreenHRes();
+    static void PresentVideoFrame(int w, int h, const uint8_t* rgb);
 };
 
 }

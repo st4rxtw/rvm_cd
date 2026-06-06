@@ -8,6 +8,7 @@
 #include <rvm/StageSystem.h>
 #include <rvm/ObjectSystem.h>
 #include <rvm/FileIO.h>
+#include <rvm/VideoPlayer.h>
 #include <GLFW/glfw3.h>
 
 namespace cd {
@@ -72,10 +73,15 @@ void Game::Draw()
     if (StageSystem::stageMode == 2)
         EngineCallbacks::ProcessMainLoop();
 
-    if (RenderDevice::highResMode == 0)
+    if (GlobalAppDefinitions::gameMode == 9) {
+        if (VideoPlayer::frameRGB)
+            RenderDevice::PresentVideoFrame(VideoPlayer::width, VideoPlayer::height,
+                                            VideoPlayer::frameRGB);
+    } else if (RenderDevice::highResMode == 0) {
         RenderDevice::FlipScreen();
-    else
+    } else {
         RenderDevice::FlipScreenHRes();
+    }
 }
 
 void Game::OnFocusGained()

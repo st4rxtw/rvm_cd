@@ -7,6 +7,7 @@
 #include "StageSystem.h"
 #include "TextSystem.h"
 #include "RenderDevice.h"
+#include "VideoPlayer.h"
 #include <cstdio>
 #include <cstring>
 
@@ -88,11 +89,19 @@ int32_t EngineCallbacks::prevMessage = 0;
 bool    EngineCallbacks::engineInit  = false;
 int32_t EngineCallbacks::waitValue   = 0;
 
-void EngineCallbacks::PlayVideoFile(const char* /*fileName*/)
+void EngineCallbacks::PlayVideoFile(const char* fileName)
 {
     AudioPlayback::StopMusic();
+
+    char path[512];
+    std::snprintf(path, sizeof(path), "%sVideo/%s.wmv", FileIO::basePath, fileName);
+
+    if (VideoPlayer::Open(path)) {
+        GlobalAppDefinitions::gameMode = 9;
+    } else {
+        GlobalAppDefinitions::gameMode = 1;
+    }
     waitValue = 0;
-    GlobalAppDefinitions::gameMode = 9;
 }
 
 void EngineCallbacks::OnlineSetAchievement(int32_t achievementId, int32_t achievementDone)
@@ -237,8 +246,11 @@ void EngineCallbacks::ProcessMainLoop()
             GlobalAppDefinitions::gameMode = 1;
             break;
         case 9:
-            if (waitValue < 60) { ++waitValue; break; }
-            GlobalAppDefinitions::gameMode = 1;
+            VideoPlayer::DecodeFrame();
+            if (VideoPlayer::IsFinished()) {
+                VideoPlayer::Close();
+                GlobalAppDefinitions::gameMode = 1;
+            }
             break;
     }
 }

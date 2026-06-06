@@ -10,7 +10,7 @@ find_package(OpenGL REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLFW   REQUIRED glfw3)
 pkg_check_modules(OPENAL REQUIRED openal)
-pkg_check_modules(FFMPEG REQUIRED libavcodec libavformat libavutil libswresample)
+pkg_check_modules(FFMPEG REQUIRED libavcodec libavformat libavutil libswresample libswscale)
 
 add_library(glad STATIC third_party/glad/src/glad.c)
 target_include_directories(glad PUBLIC third_party/glad/include)
@@ -22,6 +22,7 @@ set(RVM_SOURCES
     src/rvm/InputSystem.cpp
     src/rvm/Scene3D.cpp
     src/rvm/AudioPlayback.cpp
+    src/rvm/VideoPlayer_FFmpeg.cpp
     src/rvm/AnimationSystem.cpp
     src/rvm/TextSystem.cpp
     src/rvm/GraphicsSystem.cpp

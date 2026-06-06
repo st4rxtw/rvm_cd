@@ -37,6 +37,11 @@ static GLint  s_loc3D_mvp     = -1;
 static GLuint s_fbo           = 0;
 static GLuint s_fbTex         = 0;
 
+static GLuint s_vidTex  = 0;
+static GLuint s_vidVao  = 0;
+static GLuint s_vidVbo  = 0;
+static GLuint s_vidProg = 0;
+
 static const char* kVS2D = R"GLSL(
 #version 330 core
 layout(location=0) in vec2  aPos;
@@ -369,5 +374,73 @@ static void doFlip()
 
 void RenderDevice::FlipScreen()     { doFlip(); }
 void RenderDevice::FlipScreenHRes() { doFlip(); }
+
+void RenderDevice::PresentVideoFrame(int w, int h, const uint8_t* rgb)
+{
+    if (!s_glReady) return;
+
+    if (s_vidProg == 0) {
+        static const char* kVSVid = R"GLSL(
+#version 330 core
+layout(location=0) in vec2 aPos;
+layout(location=1) in vec2 aUV;
+out vec2 vUV;
+void main(){ gl_Position=vec4(aPos,0,1); vUV=aUV; }
+)GLSL";
+        static const char* kFSVid = R"GLSL(
+#version 330 core
+in vec2 vUV;
+out vec4 fragColor;
+uniform sampler2D uTex;
+void main(){ fragColor=texture(uTex,vUV); }
+)GLSL";
+        s_vidProg = linkProg(kVSVid, kFSVid);
+        glUseProgram(s_vidProg);
+        glUniform1i(glGetUniformLocation(s_vidProg,"uTex"), 0);
+
+        float verts[] = {
+            -1.f,  1.f,  0.f, 0.f,
+             1.f,  1.f,  1.f, 0.f,
+            -1.f, -1.f,  0.f, 1.f,
+             1.f, -1.f,  1.f, 1.f,
+        };
+        glGenVertexArrays(1, &s_vidVao);
+        glGenBuffers(1, &s_vidVbo);
+        glBindVertexArray(s_vidVao);
+        glBindBuffer(GL_ARRAY_BUFFER, s_vidVbo);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4*sizeof(float), (void*)(2*sizeof(float)));
+        glBindVertexArray(0);
+
+        glGenTextures(1, &s_vidTex);
+        glBindTexture(GL_TEXTURE_2D, s_vidTex);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
+
+    glBindTexture(GL_TEXTURE_2D, s_vidTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, rgb);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, viewWidth, viewHeight);
+    glClearColor(0, 0, 0, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_BLEND);
+
+    glUseProgram(s_vidProg);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, s_vidTex);
+    glBindVertexArray(s_vidVao);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindVertexArray(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
 
 }
