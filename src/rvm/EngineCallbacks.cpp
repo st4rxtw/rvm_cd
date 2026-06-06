@@ -8,6 +8,7 @@
 #include "TextSystem.h"
 #include "RenderDevice.h"
 #include "VideoPlayer.h"
+#include "InputSystem.h"
 #include <cstdio>
 #include <cstring>
 
@@ -246,6 +247,11 @@ void EngineCallbacks::ProcessMainLoop()
             GlobalAppDefinitions::gameMode = 1;
             break;
         case 9:
+            if (InputSystem::touchData.start) {
+                VideoPlayer::Close();
+                GlobalAppDefinitions::gameMode = 1;
+                break;
+            }
             VideoPlayer::DecodeFrame();
             if (VideoPlayer::IsFinished()) {
                 VideoPlayer::Close();

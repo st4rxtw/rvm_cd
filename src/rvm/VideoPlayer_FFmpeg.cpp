@@ -34,6 +34,24 @@ static int              s_audIdx = -1;
 static bool             s_eof      = false;
 static bool             s_finished = false;
 
+#ifdef __SWITCH__
+static FILE*        s_file = nullptr;
+static AVIOContext* s_avio = nullptr;
+
+static int vp_readCb(void* opaque, uint8_t* buf, int sz) {
+    int n = (int)fread(buf, 1, (size_t)sz, (FILE*)opaque);
+    return n == 0 ? AVERROR_EOF : n;
+}
+static int64_t vp_seekCb(void* opaque, int64_t off, int whence) {
+    FILE* f = (FILE*)opaque;
+    if (whence == AVSEEK_SIZE) {
+        long cur = ftell(f); fseek(f, 0, SEEK_END);
+        long sz = ftell(f); fseek(f, cur, SEEK_SET); return sz;
+    }
+    fseek(f, (long)off, whence); return ftell(f);
+}
+#endif
+
 static double          s_fps          = 30.0;
 static int64_t         s_nextFrameNum = 0;
 static std::chrono::steady_clock::time_point s_startTime;
@@ -117,9 +135,22 @@ bool VideoPlayer::Open(const char* path)
 {
     Close();
 
+#ifdef __SWITCH__
+    s_file = fopen(path, "rb");
+    if (!s_file) { Log::Error("Video: cannot open %s", path); return false; }
+    uint8_t* iobuf = (uint8_t*)av_malloc(4096);
+    s_avio = avio_alloc_context(iobuf, 4096, 0, s_file, vp_readCb, nullptr, vp_seekCb);
+    s_fmt = avformat_alloc_context();
+    s_fmt->pb = s_avio;
+    s_fmt->flags |= AVFMT_FLAG_CUSTOM_IO;
+    if (avformat_open_input(&s_fmt, nullptr, nullptr, nullptr) < 0) {
+        Log::Error("Video: avformat_open_input failed for %s", path); Close(); return false;
+    }
+#else
     if (avformat_open_input(&s_fmt, path, nullptr, nullptr) < 0) {
         Log::Error("Video: cannot open %s", path); return false;
     }
+#endif
     if (avformat_find_stream_info(s_fmt, nullptr) < 0) {
         Log::Error("Video: no stream info"); Close(); return false;
     }
@@ -237,6 +268,10 @@ void VideoPlayer::Close()
     if (s_vcodec) { avcodec_free_context(&s_vcodec); s_vcodec = nullptr; }
     if (s_pkt)    { av_packet_free(&s_pkt);           s_pkt    = nullptr; }
     if (s_fmt)    { avformat_close_input(&s_fmt);     s_fmt    = nullptr; }
+#ifdef __SWITCH__
+    if (s_avio) { av_free(s_avio->buffer); s_avio->buffer = nullptr; avio_context_free(&s_avio); s_avio = nullptr; }
+    if (s_file) { fclose(s_file); s_file = nullptr; }
+#endif
     delete[] frameRGB; frameRGB = nullptr;
     width = height = 0;
     s_vidIdx = s_audIdx = -1;

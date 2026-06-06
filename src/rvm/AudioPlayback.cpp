@@ -56,18 +56,48 @@ static std::atomic<MusCmd> s_musCmd      { MusCmd::None };
 static int                 s_musPending  = -1;
 
 struct MusicDecoder {
-    AVFormatContext* fmt      = nullptr;
-    AVCodecContext*  codec    = nullptr;
-    SwrContext*      swr      = nullptr;
-    AVPacket*        pkt      = nullptr;
-    AVFrame*         frm      = nullptr;
+    AVFormatContext* fmt       = nullptr;
+    AVCodecContext*  codec     = nullptr;
+    SwrContext*      swr       = nullptr;
+    AVPacket*        pkt       = nullptr;
+    AVFrame*         frm       = nullptr;
     int              streamIdx = -1;
+#ifdef __SWITCH__
+    FILE*            file      = nullptr;
+    AVIOContext*     avio      = nullptr;
+
+    static int readCb(void* opaque, uint8_t* buf, int sz) {
+        int n = (int)fread(buf, 1, (size_t)sz, (FILE*)opaque);
+        return n == 0 ? AVERROR_EOF : n;
+    }
+    static int64_t seekCb(void* opaque, int64_t off, int whence) {
+        FILE* f = (FILE*)opaque;
+        if (whence == AVSEEK_SIZE) {
+            long cur = ftell(f); fseek(f, 0, SEEK_END);
+            long sz = ftell(f); fseek(f, cur, SEEK_SET); return sz;
+        }
+        fseek(f, (long)off, whence); return ftell(f);
+    }
+#endif
 
     bool open(const char* path)
     {
+#ifdef __SWITCH__
+        file = fopen(path, "rb");
+        if (!file) { Log::Error("FFmpeg: cannot open %s", path); return false; }
+        uint8_t* iobuf = (uint8_t*)av_malloc(4096);
+        avio = avio_alloc_context(iobuf, 4096, 0, file, readCb, nullptr, seekCb);
+        fmt = avformat_alloc_context();
+        fmt->pb = avio;
+        fmt->flags |= AVFMT_FLAG_CUSTOM_IO;
+        if (avformat_open_input(&fmt, nullptr, nullptr, nullptr) < 0) {
+            Log::Error("FFmpeg: avformat_open_input failed for %s", path); close(); return false;
+        }
+#else
         if (avformat_open_input(&fmt, path, nullptr, nullptr) < 0) {
             Log::Error("FFmpeg: cannot open %s", path); return false;
         }
+#endif
         if (avformat_find_stream_info(fmt, nullptr) < 0) {
             Log::Error("FFmpeg: no stream info"); close(); return false;
         }
@@ -134,6 +164,10 @@ struct MusicDecoder {
         if (swr)   { swr_free(&swr);                swr   = nullptr; }
         if (codec) { avcodec_free_context(&codec);  codec = nullptr; }
         if (fmt)   { avformat_close_input(&fmt);    fmt   = nullptr; }
+#ifdef __SWITCH__
+        if (avio)  { av_free(avio->buffer); avio->buffer = nullptr; avio_context_free(&avio); avio = nullptr; }
+        if (file)  { fclose(file); file = nullptr; }
+#endif
         streamIdx = -1;
     }
 };

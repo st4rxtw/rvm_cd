@@ -167,6 +167,10 @@ int main(int argc, char* argv[])
     nx_base_path(base, sizeof(base), argc > 0 ? argv[0] : nullptr);
     rvm::FileIO::SetBasePath(base);
 
+    char logPath[512];
+    snprintf(logPath, sizeof(logPath), "%srvm_cd.log", base);
+    rvm::Log::OpenFile(logPath);
+
     NWindow* nwin = nwindowGetDefault();
     nwindowSetDimensions(nwin, 1280, 720);
 
