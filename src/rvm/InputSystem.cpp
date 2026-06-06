@@ -1,7 +1,9 @@
 #include "InputSystem.h"
 #include "GlobalAppDefinitions.h"
 #include "ObjectSystem.h"
+#ifndef __SWITCH__
 #include <GLFW/glfw3.h>
+#endif
 
 namespace rvm {
 
@@ -11,9 +13,12 @@ bool        InputSystem::touchControls = false;
 InputResult InputSystem::inputPress{};
 InputResult InputSystem::touchData{};
 
+#ifndef __SWITCH__
 static GLFWwindow* s_window = nullptr;
-
 void InputSystem::SetWindow(GLFWwindow* window) { s_window = window; }
+#else
+void InputSystem::SetWindow(GLFWwindow*) {}
+#endif
 
 void InputSystem::AddTouch(float touchX, float touchY, int32_t pointerID)
 {
@@ -57,6 +62,7 @@ void InputSystem::ClearTouchData()
 
 void InputSystem::CheckKeyboardInput()
 {
+#ifndef __SWITCH__
     if (!s_window) return;
     auto key = [](GLFWwindow* w, int k) {
         return glfwGetKey(w, k) == GLFW_PRESS ? (uint8_t)1 : (uint8_t)0;
@@ -76,6 +82,9 @@ void InputSystem::CheckKeyboardInput()
             ObjectSystem::globalVariables[110] = ObjectSystem::globalVariables[110] + 1 & 1;
         touchControls = false;
     }
+#else
+    // nx input is handled in main.cpp
+#endif
 }
 
 void InputSystem::CheckKeyDown(InputResult& gameInput, uint8_t keyFlags)

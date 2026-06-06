@@ -13,3 +13,20 @@ An attempt to recreate the engine the Sonic CD 2011 mobile version uses. Heavily
 * J & K - Jump
 * Escape - Pause
 * Enter - Start
+
+# Building
+
+You need ffmpeg for pc and nx builds, and switch-mesa for nx
+
+## PC:
+
+```
+cmake -B build && cmake --build build -j$(nproc)
+```
+
+## NX
+
+```
+sudo pacman -S switch-ffmpeg switch-mesa
+cmake -B build-nx -DPLATFORM=NX . && cmake --build build-nx -j$(nproc)
+```

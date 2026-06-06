@@ -9,15 +9,20 @@
 #include <rvm/ObjectSystem.h>
 #include <rvm/FileIO.h>
 #include <rvm/VideoPlayer.h>
+
+#ifndef __SWITCH__
 #include <GLFW/glfw3.h>
+#endif
 
 namespace cd {
 
-void Game::Init(GLFWwindow* window, int32_t windowWidth, int32_t windowHeight)
+void Game::Init(void* window, int32_t windowWidth, int32_t windowHeight)
 {
     using namespace rvm;
 
-    InputSystem::SetWindow(window);
+#ifndef __SWITCH__
+    InputSystem::SetWindow(static_cast<GLFWwindow*>(window));
+#endif
 
     GlobalAppDefinitions::CalculateTrigAngles();
 
@@ -31,24 +36,22 @@ void Game::Init(GLFWwindow* window, int32_t windowWidth, int32_t windowHeight)
     GlobalAppDefinitions::gameOnlineActive  = 0;
 }
 
-void Game::Update(GLFWwindow* window)
+void Game::Update(void* window)
 {
     using namespace rvm;
 
     InputSystem::CheckKeyboardInput();
-
     InputSystem::ClearTouchData();
 
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+#ifndef __SWITCH__
+    if (glfwGetKey(static_cast<GLFWwindow*>(window), GLFW_KEY_ESCAPE) == GLFW_PRESS) {
         if (FileIO::activeStageList == 0) {
-
             if (StageSystem::stageListPosition == 4 ||
                 StageSystem::stageListPosition == 5)
                 InputSystem::touchData.start   = 1;
             else
                 InputSystem::touchData.buttonB = 1;
         } else if (StageSystem::stageMode == 2) {
-
             ObjectEntity& pauseObj = ObjectSystem::objectEntityList[9];
             if (pauseObj.state == 3 && GlobalAppDefinitions::gameMode == 1) {
                 pauseObj.state    = 4;
@@ -61,6 +64,7 @@ void Game::Update(GLFWwindow* window)
             GlobalAppDefinitions::gameMessage = 2;
         }
     }
+#endif
 
     if (StageSystem::stageMode != 2)
         EngineCallbacks::ProcessMainLoop();

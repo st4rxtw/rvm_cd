@@ -1,4 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
+
+if("${PLATFORM}" STREQUAL "NX" AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+    set(CMAKE_TOOLCHAIN_FILE "$ENV{DEVKITPRO}/cmake/Switch.cmake" CACHE PATH "")
+endif()
+
 project(rvm_cd CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -29,4 +34,8 @@ set(CD_SOURCES
     src/cd/Game.cpp
 )
 
-include(cmake/PC.cmake)
+if(NOT DEFINED PLATFORM)
+    set(PLATFORM PC)
+endif()
+
+include(cmake/${PLATFORM}.cmake)

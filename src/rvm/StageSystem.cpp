@@ -659,7 +659,7 @@ void StageSystem::DrawHLineScrollLayer8(uint8_t layerNum)
     int32_t tilesPerRow=(GlobalAppDefinitions::SCREEN_XSIZE>>4)+3;
     uint8_t vPlane=(layerNum<tLayerMidPoint)?0:1;
 
-    ushort* tileMap;
+    uint16_t* tileMap;
     uint8_t* lineRef;
     int32_t defPos0,defPos1;
     int32_t* defArr0; int32_t* defArr1;
