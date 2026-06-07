@@ -98,12 +98,27 @@ void ObjectSystem::LoadByteCodeFile(int32_t fileType, int32_t scriptNum)
 {
     FileData fData{};
     FileIO::StrCopy(scriptText, 256, "Data/Scripts/ByteCode/", 256);
-    switch (fileType) {
-    case 0: FileIO::StrAdd(scriptText,256,FileIO::pStageList[StageSystem::stageListPosition].stageFolderName,8); FileIO::StrAdd(scriptText,256,".bin",5); break;
-    case 1: FileIO::StrAdd(scriptText,256,FileIO::zStageList[StageSystem::stageListPosition].stageFolderName,8); FileIO::StrAdd(scriptText,256,".bin",5); break;
-    case 2: FileIO::StrAdd(scriptText,256,FileIO::bStageList[StageSystem::stageListPosition].stageFolderName,8); FileIO::StrAdd(scriptText,256,".bin",5); break;
-    case 3: FileIO::StrAdd(scriptText,256,FileIO::sStageList[StageSystem::stageListPosition].stageFolderName,8); FileIO::StrAdd(scriptText,256,".bin",5); break;
-    case 4: FileIO::StrAdd(scriptText,256,"GlobalCode.bin",256); break;
+
+    if (FileIO::bytecodeMode == 1) {
+        static const char kListID[4] = { 'P', 'R', 'B', 'S' };
+        char seg[8] = "GS000";
+        if (fileType < 4) {
+            seg[0] = kListID[fileType];
+            int pos = StageSystem::stageListPosition;
+            seg[2] = (char)('0' + pos / 100);
+            seg[3] = (char)('0' + pos % 100 / 10);
+            seg[4] = (char)('0' + pos % 10);
+        }
+        FileIO::StrAdd(scriptText, 256, seg, 8);
+        FileIO::StrAdd(scriptText, 256, ".bin", 5);
+    } else {
+        switch (fileType) {
+        case 0: FileIO::StrAdd(scriptText,256,FileIO::pStageList[StageSystem::stageListPosition].stageFolderName,8); FileIO::StrAdd(scriptText,256,".bin",5); break;
+        case 1: FileIO::StrAdd(scriptText,256,FileIO::zStageList[StageSystem::stageListPosition].stageFolderName,8); FileIO::StrAdd(scriptText,256,".bin",5); break;
+        case 2: FileIO::StrAdd(scriptText,256,FileIO::bStageList[StageSystem::stageListPosition].stageFolderName,8); FileIO::StrAdd(scriptText,256,".bin",5); break;
+        case 3: FileIO::StrAdd(scriptText,256,FileIO::sStageList[StageSystem::stageListPosition].stageFolderName,8); FileIO::StrAdd(scriptText,256,".bin",5); break;
+        case 4: FileIO::StrAdd(scriptText,256,"GlobalCode.bin",256); break;
+        }
     }
     if (!FileIO::LoadFile(scriptText, fData)) return;
     Log::Info("Bytecode: %s", scriptText);

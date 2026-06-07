@@ -41,6 +41,9 @@ struct FileIO {
     static int32_t  actNumber;
 
     static char     basePath[512];
+    static char     dataFile[128];
+    static bool     usingCWD;
+    static int      bytecodeMode;   // 0 = mobile (GlobalCode.bin), 1 = PC (GS000.bin)
     static void SetBasePath(const char* path);
 
     static void Init();

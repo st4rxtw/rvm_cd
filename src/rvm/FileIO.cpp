@@ -8,6 +8,9 @@
 namespace rvm {
 
 char     FileIO::basePath[512]         = "";
+char     FileIO::dataFile[128]         = "Data.rsdk";
+bool     FileIO::usingCWD             = false;
+int      FileIO::bytecodeMode         = 0;
 
 static char s_rsdkPath[512] = "";
 static char s_savePath[512] = "";
@@ -15,7 +18,7 @@ static char s_savePath[512] = "";
 void FileIO::SetBasePath(const char* path)
 {
     std::snprintf(basePath, sizeof(basePath), "%s", path);
-    std::snprintf(s_rsdkPath, sizeof(s_rsdkPath), "%sData.rsdk", path);
+    std::snprintf(s_rsdkPath, sizeof(s_rsdkPath), "%s%s", path, dataFile);
     std::snprintf(s_savePath, sizeof(s_savePath), "%sSGame.bin", path);
     Log::Info("Base path: %s", basePath);
     Log::Info("RSDK path: %s", s_rsdkPath);
@@ -171,24 +174,40 @@ bool FileIO::ConvertStringToInteger(const char* strA, int32_t& sValue)
 bool FileIO::CheckRSDKFile()
 {
     FileData fData{};
-    fileReader = fopen(s_rsdkPath, "rb");
-    if (!fileReader) { Log::Error("Cannot open Data.rsdk at: %s", s_rsdkPath); useRSDKFile = false; useByteCode = false; return false; }
-    fseek(fileReader, 0, SEEK_END);
-    long len = ftell(fileReader);
-    fclose(fileReader);
-    fileReader = nullptr;
-    if (len > 0) {
-        useRSDKFile = true;
-        useByteCode = false;
-        if (!LoadFile("Data/Scripts/ByteCode/GlobalCode.bin", fData))
-            return false;
-        useByteCode = true;
-        CloseFile();
-        return true;
-    }
     useRSDKFile = false;
     useByteCode = false;
-    return false;
+
+    if (!usingCWD) {
+        fileReader = fopen(s_rsdkPath, "rb");
+        if (fileReader) {
+            fseek(fileReader, 0, SEEK_END);
+            long len = ftell(fileReader);
+            fclose(fileReader);
+            fileReader = nullptr;
+            if (len > 0) useRSDKFile = true;
+        }
+    }
+
+    if (useRSDKFile) {
+        Log::Info("Using RSDK pack: %s", s_rsdkPath);
+    } else {
+        Log::Info("Using loose files under: %s", basePath);
+    }
+
+    if (LoadFile("Data/Scripts/ByteCode/GlobalCode.bin", fData)) {
+        useByteCode = true;
+        bytecodeMode = 0;
+        CloseFile();
+        Log::Info("Bytecode: mobile mode (GlobalCode.bin)");
+    } else if (LoadFile("Data/Scripts/ByteCode/GS000.bin", fData)) {
+        useByteCode = true;
+        bytecodeMode = 1;
+        CloseFile();
+        Log::Info("Bytecode: PC mode (GS000.bin)");
+    } else {
+        Log::Warn("No bytecode found — scripts disabled");
+    }
+    return true;
 }
 
 bool FileIO::LoadFile(const char* filePath, FileData& fData)
@@ -201,24 +220,47 @@ bool FileIO::LoadFile(const char* filePath, FileData& fData)
     fData.fileName[i] = '\0';
 
     if (fileReader) { fclose(fileReader); fileReader = nullptr; }
-    fileReader = fopen(s_rsdkPath, "rb");
-    if (!fileReader) { Log::Error("LoadFile: cannot open Data.rsdk"); return false; }
-    fseek(fileReader, 0, SEEK_END);
-    fileSize = (uint32_t)ftell(fileReader);
-    fseek(fileReader, 0, SEEK_SET);
-    bufferPosition = 0;
-    readSize       = 0;
-    readPos        = 0;
 
-    if (!ParseVirtualFileSystem(fData.fileName)) {
-        fclose(fileReader); fileReader = nullptr;
-        return false;
+    if (useRSDKFile) {
+        fileReader = fopen(s_rsdkPath, "rb");
+        if (!fileReader) { Log::Error("LoadFile: cannot open %s", s_rsdkPath); return false; }
+        fseek(fileReader, 0, SEEK_END);
+        fileSize = (uint32_t)ftell(fileReader);
+        fseek(fileReader, 0, SEEK_SET);
+        bufferPosition = 0;
+        readSize       = 0;
+        readPos        = 0;
+
+        if (!ParseVirtualFileSystem(fData.fileName)) {
+            fclose(fileReader); fileReader = nullptr;
+            return false;
+        }
+        fData.fileSize          = vFileSize;
+        fData.virtualFileOffset = virtualFileOffset;
+        bufferPosition = 0;
+        readSize       = 0;
+        return true;
+    } else {
+        char fullPath[512];
+        std::snprintf(fullPath, sizeof(fullPath), "%s%s", basePath, filePath);
+        fileReader = fopen(fullPath, "rb");
+        if (!fileReader) return false;
+        fseek(fileReader, 0, SEEK_END);
+        fileSize = (uint32_t)ftell(fileReader);
+        fseek(fileReader, 0, SEEK_SET);
+        vFileSize               = fileSize;
+        virtualFileOffset       = 0;
+        fData.fileSize          = fileSize;
+        fData.virtualFileOffset = 0;
+        bufferPosition = 0;
+        readSize       = 0;
+        readPos        = 0;
+        eStringNo      = 0;
+        eStringPosA    = 0;
+        eStringPosB    = 0;
+        eNybbleSwap    = false;
+        return true;
     }
-    fData.fileSize          = vFileSize;
-    fData.virtualFileOffset = virtualFileOffset;
-    bufferPosition = 0;
-    readSize       = 0;
-    return true;
 }
 
 void FileIO::CloseFile()
@@ -331,29 +373,40 @@ bool FileIO::ParseVirtualFileSystem(const char* filePath)
                    ((int32_t)ReadByte() << 16) | ((int32_t)ReadByte() << 24);
     uint16_t num3 = (uint16_t)ReadByte() | ((uint16_t)ReadByte() << 8);
 
-    int32_t num4 = 0, num5 = 0;
-    while (num4 < (int32_t)num3) {
-        uint8_t num6 = ReadByte();
+    int32_t fileOffset     = -1;
+    int32_t nextFileOffset = (int32_t)fileSize - num2;
+    int32_t dirIdx = 0;
+    while (dirIdx < (int32_t)num3) {
+        uint8_t nameLen = ReadByte();
         int idx5;
-        for (idx5 = 0; idx5 < (int32_t)num6; ++idx5)
-            strB[idx5] = (char)((uint32_t)ReadByte() ^ (uint32_t)255 - (uint32_t)num6);
+        for (idx5 = 0; idx5 < (int32_t)nameLen; ++idx5)
+            strB[idx5] = (char)((uint32_t)ReadByte() ^ (uint32_t)255 - (uint32_t)nameLen);
         strB[idx5] = '\0';
+
         if (StringComp(strA1, strB)) {
-            num4 = (int32_t)num3;
-            num5 = (int32_t)ReadByte() | ((int32_t)ReadByte() << 8) |
-                   ((int32_t)ReadByte() << 16) | ((int32_t)ReadByte() << 24);
+            fileOffset = (int32_t)ReadByte() | ((int32_t)ReadByte() << 8) |
+                         ((int32_t)ReadByte() << 16) | ((int32_t)ReadByte() << 24);
+
+            if (dirIdx == (int32_t)num3 - 1) {
+                nextFileOffset = (int32_t)fileSize - num2;
+            } else {
+                uint8_t nlen = ReadByte();
+                for (int k = 0; k < (int32_t)nlen; ++k) ReadByte();
+                nextFileOffset = (int32_t)ReadByte() | ((int32_t)ReadByte() << 8) |
+                                 ((int32_t)ReadByte() << 16) | ((int32_t)ReadByte() << 24);
+            }
+            dirIdx = (int32_t)num3;
         } else {
-            num5 = -1;
             ReadByte(); ReadByte(); ReadByte(); ReadByte();
-            ++num4;
+            ++dirIdx;
         }
     }
 
-    if (num5 == -1) { useRSDKFile = true; return false; }
+    if (fileOffset == -1) { useRSDKFile = true; return false; }
 
-    fseek(fileReader, (long)(num2 + num5), SEEK_SET);
+    fseek(fileReader, (long)(num2 + fileOffset), SEEK_SET);
     bufferPosition = 0; readSize = 0; readPos = 0;
-    virtualFileOffset = (uint32_t)(num2 + num5);
+    virtualFileOffset = (uint32_t)(num2 + fileOffset);
 
     while (true) {
         uint8_t num9 = ReadByte();
@@ -366,19 +419,23 @@ bool FileIO::ParseVirtualFileSystem(const char* filePath)
         }
         strB[idx6] = '\0';
         if (StringComp(strA2, strB)) {
-            int32_t num10 = (int32_t)ReadByte() | ((int32_t)ReadByte() << 8) |
-                            ((int32_t)ReadByte() << 16) | ((int32_t)ReadByte() << 24);
+            int32_t sz = (int32_t)ReadByte() | ((int32_t)ReadByte() << 8) |
+                         ((int32_t)ReadByte() << 16) | ((int32_t)ReadByte() << 24);
             virtualFileOffset += 4;
-            vFileSize = (uint32_t)num10;
+            vFileSize = (uint32_t)sz;
             fseek(fileReader, (long)virtualFileOffset, SEEK_SET);
             bufferPosition = 0; readSize = 0;
             readPos = virtualFileOffset;
             break;
         } else {
-            int32_t num11 = (int32_t)ReadByte() | ((int32_t)ReadByte() << 8) |
-                            ((int32_t)ReadByte() << 16) | ((int32_t)ReadByte() << 24);
+            int32_t skip = (int32_t)ReadByte() | ((int32_t)ReadByte() << 8) |
+                           ((int32_t)ReadByte() << 16) | ((int32_t)ReadByte() << 24);
             virtualFileOffset += 4;
-            virtualFileOffset += (uint32_t)num11;
+            virtualFileOffset += (uint32_t)skip;
+            if ((int32_t)virtualFileOffset >= nextFileOffset + num2) {
+                useRSDKFile = true;
+                return false;
+            }
             fseek(fileReader, (long)virtualFileOffset, SEEK_SET);
             bufferPosition = 0; readSize = 0;
             readPos = virtualFileOffset;

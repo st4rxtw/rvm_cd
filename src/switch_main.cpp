@@ -64,6 +64,17 @@ static void egl_done()
     }
 }
 
+static void parse_args(int argc, char* argv[])
+{
+    for (int i = 1; i < argc; ++i) {
+        const char* p;
+        if ((p = strstr(argv[i], "dataFile=")))
+            snprintf(rvm::FileIO::dataFile, sizeof(rvm::FileIO::dataFile), "%s", p + 9);
+        if (strstr(argv[i], "usingCWD=true"))
+            rvm::FileIO::usingCWD = true;
+    }
+}
+
 static void nx_base_path(char* out, size_t cap, const char* nroPath)
 {
     strncpy(out, nroPath ? nroPath : "", cap - 1);
@@ -75,6 +86,8 @@ static void nx_base_path(char* out, size_t cap, const char* nroPath)
 
 int main(int argc, char* argv[])
 {
+    parse_args(argc, argv);
+
     char base[512] = {};
     nx_base_path(base, sizeof(base), argc > 0 ? argv[0] : nullptr);
     rvm::FileIO::SetBasePath(base);

@@ -28,6 +28,17 @@ static void compute_base_path(char* out, size_t cap, const char* argv0)
     else out[0] = '\0';
 }
 
+static void parse_args(int argc, char* argv[])
+{
+    for (int i = 1; i < argc; ++i) {
+        const char* p;
+        if ((p = strstr(argv[i], "dataFile=")))
+            snprintf(rvm::FileIO::dataFile, sizeof(rvm::FileIO::dataFile), "%s", p + 9);
+        if (strstr(argv[i], "usingCWD=true"))
+            rvm::FileIO::usingCWD = true;
+    }
+}
+
 static void on_focus(GLFWwindow*, int focused)
 {
     if (focused) cd::Game::OnFocusGained();
@@ -36,6 +47,8 @@ static void on_focus(GLFWwindow*, int focused)
 
 int main(int argc, char* argv[])
 {
+    parse_args(argc, argv);
+
     char base[PATH_MAX] = {};
     compute_base_path(base, sizeof(base), argc > 0 ? argv[0] : nullptr);
     rvm::FileIO::SetBasePath(base);
