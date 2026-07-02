@@ -694,7 +694,7 @@ void ObjectSystem::ProcessScript(int32_t startPtr, int32_t jtPtr, int32_t sub)
                 case 23: objectEntityList[idx].drawOrder=(uint8_t)v; break;
                 case 24: objectEntityList[idx].direction=(uint8_t)v; break;
                 case 25: objectEntityList[idx].inkEffect=(uint8_t)v; break;
-                case 26: objectEntityList[idx].alpha=(uint8_t)v; break;
+                case 26: objectEntityList[idx].alpha=v; break;
                 case 27: objectEntityList[idx].frame=(uint8_t)v; break;
                 case 28: objectEntityList[idx].animation=(uint8_t)v; break;
                 case 29: objectEntityList[idx].prevAnimation=(uint8_t)v; break;
@@ -752,7 +752,7 @@ void ObjectSystem::ProcessScript(int32_t startPtr, int32_t jtPtr, int32_t sub)
                 case 92: PL.objectPtr->drawOrder=(uint8_t)v; break;
                 case 93: PL.objectPtr->direction=(uint8_t)v; break;
                 case 94: PL.objectPtr->inkEffect=(uint8_t)v; break;
-                case 95: PL.objectPtr->alpha=(uint8_t)v; break;
+                case 95: PL.objectPtr->alpha=v; break;
                 case 96: PL.objectPtr->frame=(uint8_t)v; break;
                 case 97: PL.objectPtr->animation=(uint8_t)v; break;
                 case 98: PL.objectPtr->prevAnimation=(uint8_t)v; break;
@@ -893,7 +893,9 @@ void ObjectSystem::ProcessStartupScripts()
         objectScriptList[i].numFrames=0; objectScriptList[i].surfaceNum=0;
         objectScriptList[i].frameListOffset=scriptFramesNo;
         objectScriptList[i].numFrames=scriptFramesNo;
-        if(scriptData[objectScriptList[i].startupScript]>0)
+        if(objectScriptList[i].nativeStartup)
+            objectScriptList[i].nativeStartup();
+        else if(scriptData[objectScriptList[i].startupScript]>0)
             ProcessScript(objectScriptList[i].startupScript,objectScriptList[i].startupJumpTable,3);
         objectScriptList[i].numFrames=scriptFramesNo-objectScriptList[i].numFrames;
     }
@@ -917,7 +919,8 @@ void ObjectSystem::ProcessObjects()
         }
         if(act&&e.type>0){
             int32_t t=(int32_t)e.type; playerNum=0;
-            if(scriptData[objectScriptList[t].mainScript]>0) ProcessScript(objectScriptList[t].mainScript,objectScriptList[t].mainJumpTable,0);
+            if(objectScriptList[t].nativeMain) objectScriptList[t].nativeMain(objectLoop);
+            else if(scriptData[objectScriptList[t].mainScript]>0) ProcessScript(objectScriptList[t].mainScript,objectScriptList[t].mainJumpTable,0);
             if(scriptData[objectScriptList[t].playerScript]>0){
                 for(;playerNum<(int32_t)PlayerSystem::numActivePlayers;++playerNum)
                     if(PlayerSystem::playerList[playerNum].objectInteraction==1)
@@ -936,7 +939,8 @@ void ObjectSystem::ProcessPausedObjects()
         auto& e=objectEntityList[objectLoop];
         if(e.priority==2&&e.type>0){
             int32_t t=(int32_t)e.type; playerNum=0;
-            if(scriptData[objectScriptList[t].mainScript]>0) ProcessScript(objectScriptList[t].mainScript,objectScriptList[t].mainJumpTable,0);
+            if(objectScriptList[t].nativeMain) objectScriptList[t].nativeMain(objectLoop);
+            else if(scriptData[objectScriptList[t].mainScript]>0) ProcessScript(objectScriptList[t].mainScript,objectScriptList[t].mainJumpTable,0);
             if(scriptData[objectScriptList[t].playerScript]>0)
                 for(;playerNum<(int32_t)PlayerSystem::numActivePlayers;++playerNum)
                     if(PlayerSystem::playerList[playerNum].objectInteraction==1)
@@ -954,7 +958,8 @@ void ObjectSystem::DrawObjectList(int32_t n)
         if(objectEntityList[objectLoop].type>0){
             playerNum=0;
             int32_t t=(int32_t)objectEntityList[objectLoop].type;
-            if(scriptData[objectScriptList[t].drawScript]>0)
+            if(objectScriptList[t].nativeDraw) objectScriptList[t].nativeDraw(objectLoop);
+            else if(scriptData[objectScriptList[t].drawScript]>0)
                 ProcessScript(objectScriptList[t].drawScript,objectScriptList[t].drawJumpTable,2);
         }
     }
@@ -1205,6 +1210,37 @@ void ObjectSystem::ObjectRoofGrip(int32_t xo,int32_t yo,int32_t cp){
     if(scriptEng.checkResult==1){
         if(std::abs(objectEntityList[objectLoop].yPos-orig)<16)objectEntityList[objectLoop].yPos=(objectEntityList[objectLoop].yPos-yo)<<16;
         else{objectEntityList[objectLoop].yPos=(orig-yo)<<16;scriptEng.checkResult=0;}
+    }
+}
+
+static bool nameMatchStripped(const char* stored, const char* query)
+{
+    int i = 0;
+    while (*stored) {
+        while (query[i] == ' ') ++i;
+        if (*stored != query[i]) return false;
+        ++stored; ++i;
+    }
+    while (query[i] == ' ') ++i;
+    return query[i] == '\0';
+}
+
+uint8_t ObjectSystem::GetTypeID(const char* name)
+{
+    for(int i=0;i<256;++i)
+        if(nameMatchStripped(typeNames[i],name)) return (uint8_t)i;
+    return 0;
+}
+
+void ObjectSystem::RegisterNative(const char* typeName, void(*startup)(), void(*main)(int32_t), void(*draw)(int32_t))
+{
+    for(int i=0;i<256;++i){
+        if(nameMatchStripped(typeNames[i],typeName)){
+            objectScriptList[i].nativeStartup = startup;
+            objectScriptList[i].nativeMain    = main;
+            objectScriptList[i].nativeDraw    = draw;
+            return;
+        }
     }
 }
 

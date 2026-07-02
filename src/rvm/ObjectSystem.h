@@ -50,6 +50,9 @@ struct ObjectSystem {
     static int32_t  playerNum;
     static CollisionSensor cSensor[6];
 
+    static uint8_t  GetTypeID(const char* name);
+    static void     RegisterNative(const char* typeName, void(*startup)(), void(*main)(int32_t), void(*draw)(int32_t));
+
     static void Init();
     static void ClearScriptData();
     static void SetObjectTypeName(const char* typeName, int32_t scriptNum);

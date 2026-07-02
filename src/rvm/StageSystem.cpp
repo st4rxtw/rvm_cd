@@ -19,6 +19,7 @@ namespace rvm {
 
 InputResult  StageSystem::gKeyDown       {};
 InputResult  StageSystem::gKeyPress      {};
+void (*StageSystem::onBeforeStartupScripts)() = nullptr;
 uint8_t      StageSystem::stageMode      = 0;
 uint8_t      StageSystem::pauseEnabled   = 0;
 int32_t      StageSystem::stageListPosition = 0;
@@ -288,6 +289,7 @@ void StageSystem::LoadStageFiles()
         for(int v=0;v<8;++v)e.value[v]=0;
     }
     LoadActLayout();
+    if (onBeforeStartupScripts) onBeforeStartupScripts();
     ObjectSystem::ProcessStartupScripts();
     {
         Log::Info("=== gfxSurface after ProcessStartupScripts ===");

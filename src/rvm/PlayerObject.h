@@ -18,7 +18,7 @@ struct PlayerObject {
     int32_t          angle{};
     int32_t          timer{};
     int32_t          lookPos{};
-    int32_t          value[8]{};
+    int32_t          value[16]{};
     uint8_t          collisionMode{};
     uint8_t          skidding{};
     uint8_t          pushing{};

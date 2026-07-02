@@ -17,6 +17,9 @@ struct ObjectScript {
     int32_t         startupJumpTable{};
     int32_t         frameListOffset{};
     AnimationFileList* animationFile{};
+    void (*nativeStartup)(){};
+    void (*nativeMain)(int32_t entityNo){};
+    void (*nativeDraw)(int32_t entityNo){};
 };
 
 }

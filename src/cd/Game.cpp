@@ -1,5 +1,7 @@
 
 #include "Game.h"
+#include "Title/TitleInit.h"
+#include "Global/GlobalInit.h"
 #include <rvm/GlobalAppDefinitions.h>
 #include <rvm/RenderDevice.h>
 #include <rvm/EngineCallbacks.h>
@@ -28,6 +30,8 @@ void Game::Init(void* window, int32_t windowWidth, int32_t windowHeight)
 
     RenderDevice::InitRenderDevice();
     RenderDevice::SetScreenDimensions(windowWidth, windowHeight);
+
+    rvm::StageSystem::onBeforeStartupScripts = RegisterAllNativeScripts;
 
     EngineCallbacks::StartupRetroEngine();
 

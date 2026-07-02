@@ -609,6 +609,8 @@ void GraphicsSystem::DrawAlphaBlendedSprite(int32_t xPos, int32_t yPos, int32_t 
 {
     if (gfxSurface[surfaceNum].texStartX <= -1 || gfxVertexSize >= 8192 ||
         xPos <= -512 || xPos >= 872 || yPos <= -512 || yPos >= 752) return;
+    if (alpha > 255) alpha = 255;
+    if (alpha < 0)   alpha = 0;
     uint8_t a = (uint8_t)alpha;
     float u0=(float)(gfxSurface[surfaceNum].texStartX+xBegin)*TEX_INV;
     float v0=(float)(gfxSurface[surfaceNum].texStartY+yBegin)*TEX_INV;

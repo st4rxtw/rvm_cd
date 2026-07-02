@@ -18,7 +18,7 @@ struct ObjectEntity {
     uint8_t drawOrder{};
     uint8_t direction{};
     uint8_t inkEffect{};
-    uint8_t alpha{};
+    int32_t alpha{};
     uint8_t animation{};
     uint8_t prevAnimation{};
     uint8_t frame{};

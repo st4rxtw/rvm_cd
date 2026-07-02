@@ -66,6 +66,8 @@ struct StageSystem {
     static uint8_t           minutes;
     static uint8_t           debugMode;
 
+    static void (*onBeforeStartupScripts)();
+
     static void ProcessStage();
     static void LoadStageFiles();
     static void Load128x128Mappings();

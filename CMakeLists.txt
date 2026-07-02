@@ -32,6 +32,23 @@ set(RVM_SOURCES
 
 set(CD_SOURCES
     src/cd/Game.cpp
+    src/cd/Title/TitleInit.cpp
+    src/cd/Title/SegaObj.cpp
+    src/cd/Title/CWLogoObj.cpp
+    src/cd/Title/SonicObj.cpp
+    src/cd/Title/LogoObj.cpp
+    src/cd/Title/BackgroundObj.cpp
+    src/cd/Title/CloudsObj.cpp
+    src/cd/Title/LiteRibbonObj.cpp
+    src/cd/Title/StartObj.cpp
+    src/cd/Global/GlobalInit.cpp
+    src/cd/Global/ExplosionObj.cpp
+    src/cd/Global/SmokePuffObj.cpp
+    src/cd/Global/RingSparkleObj.cpp
+    src/cd/Global/ObjectScoreObj.cpp
+    src/cd/Global/FadeMusicObj.cpp
+    src/cd/Global/InvincibilityObj.cpp
+    src/cd/Players/PlayerNative.cpp
 )
 
 if(NOT DEFINED PLATFORM)
